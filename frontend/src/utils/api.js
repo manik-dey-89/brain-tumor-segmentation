@@ -22,7 +22,7 @@ const BASE_URL = _resolveBaseUrl()
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 120_000, // 2 min – model inference can be slow on CPU
+  timeout: 30_000,   // 30s for normal requests (health, history, metrics)
 })
 
 // ── Helper: read a Blob as text / JSON ──────────────────────────────────────
@@ -75,6 +75,15 @@ api.interceptors.response.use(
 
 export const checkHealth = () => api.get('/health')
 
+/**
+ * Ping the backend to wake it from Render free-tier sleep.
+ * Call this before predict so cold-start latency is absorbed here,
+ * not inside the 8-minute predict timeout.
+ * Resolves regardless of outcome (never throws).
+ */
+export const wakeBackend = () =>
+  api.get('/health', { timeout: 60_000 }).catch(() => {})
+
 export const getModelInfo = () => api.get('/model-info')
 
 /**
@@ -89,13 +98,12 @@ export const predict = (imageFile, maskFile = null, studyMeta = null, onProgress
   form.append('file', imageFile)
   if (maskFile) form.append('gt_mask', maskFile)
   if (studyMeta) {
-    // Backend expects `study_meta` as a flat JSON string Form field (not a file upload).
-    // FastAPI Form() reads it as Optional[str] then json.loads it in the handler.
     form.append('study_meta', JSON.stringify(studyMeta))
   }
 
   return api.post('/predict', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 480_000,   // 8 min — CPU inference is slow on Render free tier
     onUploadProgress: (e) => {
       if (onProgress && e.total) {
         onProgress(Math.round((e.loaded / e.total) * 50))

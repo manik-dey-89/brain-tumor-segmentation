@@ -204,11 +204,11 @@ inference:
   model_path: "outputs/checkpoints/best_model.pth"
   device: "auto"                   # "auto" | "cuda" | "cpu"
   batch_size: 1
-  tta: true                        # test-time augmentation
+  tta: false                       # test-time augmentation (disabled: too slow on CPU)
   tta_flips: ["horizontal", "vertical"]
-  # Uncertainty estimation via MC-Dropout
-  mc_dropout: true
-  mc_samples: 20
+  # Uncertainty estimation via MC-Dropout (disabled: adds N extra forward passes on CPU)
+  mc_dropout: false
+  mc_samples: 1
   confidence_threshold: 0.6       # below this → flag as uncertain
 
 # ── Paths / Outputs ───────────────────────────────────────────────────────────

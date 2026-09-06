@@ -10,7 +10,7 @@
  */
 import { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
-import { predict as apiPredict, generateReportPdf } from '../utils/api'
+import { predict as apiPredict, generateReportPdf, wakeBackend } from '../utils/api'
 import { STAGES } from '../components/AnalysisPipeline'
 
 const INITIAL_STAGES = Object.fromEntries(STAGES.map(s => [s.id, 'pending']))
@@ -270,6 +270,10 @@ export default function usePrediction() {
     }
 
     setField({ status: 'processing' })
+
+    // Wake the backend from Render free-tier sleep before sending the heavy
+    // predict payload — absorbs cold-start latency outside the main request.
+    await wakeBackend()
 
     try {
       const res = await apiPredict(
