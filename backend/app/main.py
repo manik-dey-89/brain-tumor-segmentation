@@ -151,15 +151,16 @@ def create_app() -> FastAPI:
     )
 
     # --- Routes -------------------------------------------------------------
-    # Import here (not at module top-level) to avoid circular imports if any
-    # route module transitively imports from main.
     from backend.app.api.routes import router
 
-    # Primary prefix — frontend should always call /api/v1/*
+    # Register at every prefix the deployed frontend may call.
+    # /api/v1  — correct production path (VITE_API_URL=.../api/v1)
+    # /api     — partial prefix fallback
+    # /        — bare fallback: handles VITE_API_URL = bare domain,
+    #             so POST /predict still resolves even without the prefix
     application.include_router(router, prefix="/api/v1")
-
-    # Fallback prefix — handles misconfigured clients that call /api/* directly
     application.include_router(router, prefix="/api")
+    application.include_router(router, prefix="")
 
     return application
 
