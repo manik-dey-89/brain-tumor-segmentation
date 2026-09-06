@@ -103,9 +103,12 @@ model:
 
   # Encoder settings
   in_channels: 1
-  base_filters: 64                 # filters in first encoder block
-  depth: 4                         # number of encoder / decoder levels
-  bilinear: false                  # true = bilinear upsampling, false = transposed conv
+  # base_filters reduced from 64 to 16 for Render free-tier deployment
+  # (64 filters = ~400MB peak RAM during forward pass, exceeds 512MB limit)
+  # (16 filters = ~25MB peak RAM, well within free tier)
+  base_filters: 16
+  depth: 4
+  bilinear: false
 
   # Normalization: "batch" | "group" | "instance"
   norm_type: "batch"

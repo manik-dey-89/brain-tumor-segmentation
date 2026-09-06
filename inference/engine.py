@@ -1,4 +1,4 @@
-﻿"""
+"""
 Inference Engine
 ================
 Central inference class used by both the CLI scripts and the FastAPI backend.
@@ -102,8 +102,14 @@ class SegmentationEngine:
 
         model_path = Path(cfg["inference"].get("model_path", "outputs/checkpoints/best_model.pth"))
         if model_path.exists():
-            load_checkpoint(model, str(model_path), device)
-            logger.info("Loaded checkpoint: %s", model_path)
+            try:
+                load_checkpoint(model, str(model_path), device, strict=False)
+                logger.info("Loaded checkpoint: %s", model_path)
+            except Exception as ckpt_exc:
+                logger.warning(
+                    "Checkpoint %s could not be loaded (%s) – using random weights.",
+                    model_path, ckpt_exc,
+                )
         else:
             logger.warning("No checkpoint found at %s – using random weights.", model_path)
 

@@ -1,0 +1,20 @@
+services:
+  # ── Backend (FastAPI inference API) ────────────────────────────────────────
+  - type: web
+    name: brain-tumor-segmentation-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: python backend/run.py --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: CONFIG_PATH
+        value: configs/config.yaml
+      - key: MODEL_PATH
+        value: outputs/checkpoints/best_model.pth
+      - key: DEVICE
+        value: cpu
+      - key: CORS_ORIGINS
+        value: https://brain-tumor-segmentation-1-savp.onrender.com,http://localhost:3000
+      - key: PYTHON_VERSION
+        value: 3.11.0
