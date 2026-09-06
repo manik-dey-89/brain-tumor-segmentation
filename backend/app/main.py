@@ -123,12 +123,31 @@ def create_app() -> FastAPI:
     )
 
     # --- CORS ---------------------------------------------------------------
+    # Build the final origins list: settings value (env-configurable) plus
+    # the deployed Render URLs hardcoded as a safety net so a misconfigured
+    # CORS_ORIGINS env var never locks out the production frontend.
+    _render_origins = [
+        "https://brain-tumor-segmentation-1-savp.onrender.com",
+    ]
+    _origins = list(dict.fromkeys(settings.cors_origins_list + _render_origins))
+
     application.add_middleware(
         CORSMiddleware,
-        allow_origins     = settings.cors_origins_list,
+        allow_origins     = _origins,
         allow_credentials = True,
-        allow_methods     = ["*"],
-        allow_headers     = ["*"],
+        allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers     = [
+            "Accept",
+            "Accept-Language",
+            "Content-Language",
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With",
+            "X-API-Key",
+            "Cache-Control",
+        ],
+        expose_headers    = ["Content-Disposition"],
+        max_age           = 600,   # preflight cache: 10 min
     )
 
     # --- Routes -------------------------------------------------------------

@@ -31,7 +31,15 @@ class Settings(BaseSettings):
     port: int              = 8000
 
     # ── CORS ──────────────────────────────────────────────────────────
-    cors_origins: str      = "http://localhost:3000,http://localhost:5173"
+    # Comma-separated list of allowed origins.
+    # Set the CORS_ORIGINS environment variable on Render (or in .env) to
+    # override.  The deployed frontend URL is included in the default so the
+    # service works out-of-the-box without any environment variable.
+    cors_origins: str = (
+        "http://localhost:3000,"
+        "http://localhost:5173,"
+        "https://brain-tumor-segmentation-1-savp.onrender.com"
+    )
 
     # ── Model / Inference ─────────────────────────────────────────────
     config_path: str       = "configs/config.yaml"
