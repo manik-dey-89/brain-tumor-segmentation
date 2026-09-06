@@ -137,6 +137,11 @@ async def predict(
 
     ⚠️ **Not a medical diagnosis. Research tool only.**
     """
+    if not is_engine_ready():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model not loaded. The server started but engine initialisation failed. Check logs.",
+        )
     engine = get_engine()
     history = get_history_service()
 
@@ -226,6 +231,11 @@ async def segment(
 
     Useful for programmatic mask download / further processing.
     """
+    if not is_engine_ready():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model not loaded. Engine initialisation failed at startup.",
+        )
     engine = get_engine()
 
     content = await validate_upload(

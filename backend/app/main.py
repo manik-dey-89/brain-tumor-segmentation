@@ -58,39 +58,38 @@ async def lifespan(app: FastAPI):
     t0 = time.perf_counter()
     try:
         engine = SegmentationEngine.from_config(settings.config_path)
-    except FileNotFoundError as exc:
-        logger.error("Config or checkpoint not found: %s", exc)
-        raise RuntimeError(
-            f"Cannot start server: {exc}. "
-            "Run training first or place a checkpoint at the configured path."
-        ) from exc
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+
+        meta: dict = {
+            "architecture":       getattr(engine, "architecture", "attention_unet"),
+            "device":             str(getattr(engine, "device", "cpu")),
+            "checkpoint":         settings.model_path,
+            "config_path":        settings.config_path,
+            "threshold":          getattr(engine, "threshold", settings.inference_threshold),
+            "tta_enabled":        getattr(engine, "tta_enabled", False),
+            "mc_dropout_samples": getattr(engine, "mc_dropout_samples", 0),
+            "params":             getattr(engine, "num_params", None),
+            "load_ms":            round(elapsed_ms, 2),
+        }
+        set_engine(engine, meta)
+
+        arch   = meta["architecture"]
+        params = f"{meta['params']:,}" if meta["params"] else "?"
+        logger.info(
+            "Model loaded in %.2f ms | arch=%s | params=%s | device=%s",
+            elapsed_ms, arch, params, meta["device"],
+        )
+
     except Exception as exc:
-        logger.error("Engine initialisation failed: %s", exc, exc_info=True)
-        raise
+        # Do NOT crash the process — log the error and keep the server up.
+        # /health will report engine_ready=false; /predict will return 503.
+        logger.error(
+            "Engine initialisation failed — server starting without model. "
+            "Error: %s",
+            exc,
+            exc_info=True,
+        )
 
-    elapsed_ms = (time.perf_counter() - t0) * 1000
-
-    # Build a small meta dict that /model-info and /health can read back
-    meta: dict = {
-        "architecture":  getattr(engine, "architecture", "attention_unet"),
-        "device":        str(getattr(engine, "device", "cpu")),
-        "checkpoint":    settings.model_path,
-        "config_path":   settings.config_path,
-        "threshold":     getattr(engine, "threshold", settings.inference_threshold),
-        "tta_enabled":   getattr(engine, "tta_enabled", False),
-        "mc_dropout_samples": getattr(engine, "mc_dropout_samples", 0),
-        "params":        getattr(engine, "num_params", None),
-        "load_ms":       round(elapsed_ms, 2),
-    }
-
-    set_engine(engine, meta)
-
-    arch  = meta["architecture"]
-    params = f"{meta['params']:,}" if meta["params"] else "?"
-    logger.info(
-        "Model loaded in %.2f ms | arch=%s | params=%s | device=%s",
-        elapsed_ms, arch, params, meta["device"],
-    )
     logger.info("API ready -> http://%s:%s", settings.host, settings.port)
     logger.info("Docs      -> http://%s:%s/docs", settings.host, settings.port)
 

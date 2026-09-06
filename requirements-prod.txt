@@ -1,0 +1,37 @@
+# Production dependencies only — used by Render deployment.
+# Excludes training, testing, and visualization packages to minimise
+# memory usage on Render free tier (512 MB RAM).
+#
+# Render build command:  pip install -r requirements-prod.txt
+
+# ── Deep Learning (CPU build — no CUDA needed on Render) ──────────────────────
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1+cpu
+torchvision==0.18.1+cpu
+
+# ── Computer Vision ───────────────────────────────────────────────────────────
+opencv-python-headless==4.10.0.84
+Pillow==10.4.0
+
+# ── Scientific Computing ──────────────────────────────────────────────────────
+numpy==1.26.4
+scipy==1.14.0
+
+# ── Data / Config ─────────────────────────────────────────────────────────────
+PyYAML==6.0.1
+
+# ── Backend (FastAPI) ─────────────────────────────────────────────────────────
+fastapi==0.111.1
+uvicorn[standard]==0.30.3
+python-multipart==0.0.9
+pydantic==2.8.2
+pydantic-settings==2.3.4
+
+# ── PDF Report Generation ─────────────────────────────────────────────────────
+reportlab==4.2.2
+
+# ── NIfTI support ─────────────────────────────────────────────────────────────
+nibabel==5.2.1
+
+# ── Environment ───────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
