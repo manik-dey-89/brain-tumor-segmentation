@@ -1,0 +1,236 @@
+# =============================================================================
+# Brain Tumor Segmentation - Central Configuration File
+# =============================================================================
+
+# ── Project ──────────────────────────────────────────────────────────────────
+project:
+  name: "Brain Tumor Segmentation"
+  version: "1.0.0"
+  description: "Research-grade brain tumor segmentation using U-Net variants"
+  seed: 42
+
+# ── Data ─────────────────────────────────────────────────────────────────────
+data:
+  # Root directory for raw data (relative to project root)
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  samples_dir: "data/samples"
+
+  # Expected subdirectory layout inside raw_dir:
+  #   data/raw/images/  -> MRI scans (.png / .jpg / .nii / .nii.gz)
+  #   data/raw/masks/   -> Binary tumour masks (same filenames)
+  images_subdir: "images"
+  masks_subdir: "masks"
+
+  # Image settings
+  image_size: [256, 256]          # [H, W] – resize target
+  num_channels: 1                  # 1 = grayscale, 3 = RGB
+  num_classes: 2                   # 2 = binary (BG + tumour), >2 = multi-class
+
+  # Split ratios (must sum to 1.0)
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+  # Patient-level split: set to true when filenames contain patient IDs
+  # Filename convention: <patient_id>_<slice>.png   e.g.  BraTS21_001_slice042.png
+  patient_level_split: false     # set true when filenames contain real patient IDs
+  patient_id_separator: "_"       # character used to extract patient ID prefix
+  patient_id_index: 1             # token index after split (1 = numeric part for SYNTH_001_...)
+
+  # Class balancing
+  balance_classes: true
+  oversampling_factor: 2          # repeat minority-class samples N times
+
+  # DataLoader
+  batch_size: 8
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+
+# ── Preprocessing ─────────────────────────────────────────────────────────────
+preprocessing:
+  normalize: true
+  normalization_method: "zscore"   # options: "zscore" | "minmax" | "percentile"
+  percentile_low: 1.0
+  percentile_high: 99.0
+  denoise: true
+  denoise_method: "gaussian"       # options: "gaussian" | "median" | "bilateral"
+  denoise_sigma: 1.0
+  clip_values: true
+  clip_min: 0.0
+  clip_max: 1.0
+
+# ── Augmentation ──────────────────────────────────────────────────────────────
+augmentation:
+  enabled: true
+  # Geometric
+  random_horizontal_flip: 0.5
+  random_vertical_flip: 0.5
+  random_rotation_degrees: 15
+  random_affine:
+    enabled: true
+    degrees: 10
+    translate: [0.05, 0.05]
+    scale: [0.9, 1.1]
+  elastic_transform:
+    enabled: true
+    alpha: 120
+    sigma: 12
+  # Intensity
+  random_brightness_contrast:
+    enabled: true
+    brightness_limit: 0.2
+    contrast_limit: 0.2
+  gaussian_noise:
+    enabled: true
+    mean: 0.0
+    std: 0.02
+  random_gamma:
+    enabled: true
+    gamma_limit: [80, 120]
+  # Occlusion / Cutout
+  coarse_dropout:
+    enabled: true
+    max_holes: 8
+    max_height: 16
+    max_width: 16
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  # Architecture: "unet" | "attention_unet" | "resunet"
+  architecture: "attention_unet"
+
+  # Encoder settings
+  in_channels: 1
+  base_filters: 64                 # filters in first encoder block
+  depth: 4                         # number of encoder / decoder levels
+  bilinear: false                  # true = bilinear upsampling, false = transposed conv
+
+  # Normalization: "batch" | "group" | "instance"
+  norm_type: "batch"
+  num_groups: 8                    # used when norm_type = "group"
+
+  # Dropout
+  dropout_rate: 0.3
+  dropout_type: "2d"               # "1d" | "2d" | "none"
+
+  # Pretrained encoder (ResNet backbone for ResUNet)
+  use_pretrained_encoder: false
+  pretrained_encoder: "resnet34"   # options: "resnet18" | "resnet34" | "resnet50"
+  freeze_encoder: false
+
+  # Output activation
+  output_activation: "sigmoid"     # "sigmoid" for binary, "softmax" for multi-class
+
+# ── Loss ──────────────────────────────────────────────────────────────────────
+loss:
+  # Weighted combination: dice + bce (binary) or dice + ce (multi-class)
+  primary: "combined"              # "dice" | "bce" | "focal" | "tversky" | "combined"
+  dice_weight: 0.5
+  bce_weight: 0.3
+  focal_weight: 0.2
+  tversky_weight: 0.0              # set >0 to include tversky term
+
+  # Focal loss params
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+  # Tversky loss params
+  tversky_alpha: 0.3               # FP penalty
+  tversky_beta: 0.7                # FN penalty
+
+  # Label smoothing
+  label_smoothing: 0.0
+
+# ── Training ──────────────────────────────────────────────────────────────────
+training:
+  epochs: 100
+  optimizer: "adamw"               # "adam" | "adamw" | "sgd"
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-5
+  momentum: 0.9                    # SGD only
+
+  # Learning rate scheduler
+  scheduler: "cosine_warmup"       # "step" | "cosine" | "cosine_warmup" | "plateau" | "none"
+  warmup_epochs: 5
+  step_size: 20                    # StepLR
+  gamma: 0.5                       # StepLR / ExponentialLR
+  patience_lr: 10                  # ReduceLROnPlateau
+  min_lr: 1.0e-7
+
+  # Early stopping
+  early_stopping: true
+  patience_es: 20
+  monitor_metric: "val_dice"       # metric to watch
+  mode: "max"                      # "max" for dice/iou, "min" for loss
+
+  # Mixed precision
+  mixed_precision: true
+
+  # Gradient clipping
+  grad_clip: 1.0
+
+  # Checkpointing
+  save_best_only: true
+  checkpoint_dir: "outputs/checkpoints"
+  checkpoint_metric: "val_dice"
+
+  # Logging interval (batches)
+  log_interval: 10
+
+  # Validation frequency (epochs)
+  val_frequency: 1
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+evaluation:
+  threshold: 0.5                   # probability threshold for binary mask
+  metrics:
+    - "dice"
+    - "iou"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "sensitivity"
+    - "specificity"
+    - "hausdorff"
+  save_predictions: true
+  predictions_dir: "outputs/predictions"
+  visualize: true
+  visualizations_dir: "outputs/visualizations"
+
+# ── Inference ─────────────────────────────────────────────────────────────────
+inference:
+  model_path: "outputs/checkpoints/best_model.pth"
+  device: "auto"                   # "auto" | "cuda" | "cpu"
+  batch_size: 1
+  tta: true                        # test-time augmentation
+  tta_flips: ["horizontal", "vertical"]
+  # Uncertainty estimation via MC-Dropout
+  mc_dropout: true
+  mc_samples: 20
+  confidence_threshold: 0.6       # below this → flag as uncertain
+
+# ── Paths / Outputs ───────────────────────────────────────────────────────────
+outputs:
+  base_dir: "outputs"
+  logs_dir: "outputs/logs"
+  tensorboard_dir: "outputs/logs/tensorboard"
+
+# ── Visualization ─────────────────────────────────────────────────────────────
+visualization:
+  colormap: "jet"
+  overlay_alpha: 0.45
+  dpi: 150
+  figure_size: [12, 4]
+  save_format: "png"
+
+# ── Backend (FastAPI) ─────────────────────────────────────────────────────────
+backend:
+  host: "0.0.0.0"
+  port: 8000
+  max_upload_size_mb: 50
+  allowed_extensions: [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".nii", ".nii.gz"]
+  temp_dir: "outputs/temp"
+  history_limit: 100
+  cors_origins: ["http://localhost:3000", "http://localhost:5173"]

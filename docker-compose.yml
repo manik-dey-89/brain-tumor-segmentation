@@ -1,0 +1,92 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Brain Tumor Segmentation – Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+# Services:
+#   backend  – FastAPI inference API  (port 8000)
+#   frontend – React / Nginx dashboard (port 3000)
+#
+# Usage:
+#   docker compose up --build            # CPU mode
+#   docker compose --profile gpu up      # GPU mode (requires nvidia-container-toolkit)
+#   docker compose up --build -d         # detached
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: brain-tumor-seg-backend:latest
+    container_name: brain-tumor-seg-backend
+    restart: unless-stopped
+
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - CONFIG_PATH=configs/config.yaml
+      - DEVICE=auto
+      - MODEL_PATH=outputs/checkpoints/best_model.pth
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:80
+      - HISTORY_LIMIT=200
+      - MAX_UPLOAD_MB=50
+      - DEBUG=false
+
+    volumes:
+      # Persist model checkpoints and outputs
+      - ./outputs:/app/outputs
+      - ./configs:/app/configs:ro
+      # Mount data directory (read-only for inference)
+      - ./data:/app/data:ro
+
+    ports:
+      - "8000:8000"
+
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    # GPU variant (activate with: docker compose --profile gpu up)
+    profiles: ["", "gpu"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: /api/v1
+    image: brain-tumor-seg-frontend:latest
+    container_name: brain-tumor-seg-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    ports:
+      - "3000:80"
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+# ── Named volumes ─────────────────────────────────────────────────────────────
+volumes:
+  outputs:
+    driver: local
