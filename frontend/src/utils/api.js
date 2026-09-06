@@ -1,10 +1,24 @@
 /**
  * API client for the Brain Tumor Segmentation backend.
- * All requests go to /api/v1 (proxied to localhost:8000 in dev).
+ * All requests go to /api/v1 (proxied to localhost:8000 in dev,
+ * or directly to VITE_API_URL in production).
+ *
+ * VITE_API_URL can be set to either:
+ *   https://your-backend.onrender.com/api/v1   (full path - preferred)
+ *   https://your-backend.onrender.com           (bare domain — normalised below)
  */
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+// Normalise: strip trailing slash, then ensure path ends with /api/v1
+function _resolveBaseUrl() {
+  const raw = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '')
+  if (!raw) return '/api/v1'                         // dev: use Vite proxy
+  if (raw.endsWith('/api/v1')) return raw            // already correct
+  if (raw.endsWith('/api')) return `${raw}/v1`       // partial — append version
+  return `${raw}/api/v1`                             // bare domain — append full prefix
+}
+
+const BASE_URL = _resolveBaseUrl()
 
 const api = axios.create({
   baseURL: BASE_URL,

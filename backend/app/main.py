@@ -154,7 +154,12 @@ def create_app() -> FastAPI:
     # Import here (not at module top-level) to avoid circular imports if any
     # route module transitively imports from main.
     from backend.app.api.routes import router
+
+    # Primary prefix — frontend should always call /api/v1/*
     application.include_router(router, prefix="/api/v1")
+
+    # Fallback prefix — handles misconfigured clients that call /api/* directly
+    application.include_router(router, prefix="/api")
 
     return application
 
